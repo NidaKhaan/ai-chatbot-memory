@@ -1,8 +1,15 @@
 import os
+import logging
 from dotenv import load_dotenv
-from groq import Groq
+from groq import Groq, APIError, APIConnectionError
 
 load_dotenv()
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s"
+)
+logger = logging.getLogger(__name__)
 
 client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
@@ -33,12 +40,25 @@ def main():
 
         history.append({"role": "user", "content": user_input})
 
-        response = client.chat.completions.create(
-            model=MODEL,
-            messages=history
-        )
+        try:
+            response = client.chat.completions.create(
+                model=MODEL,
+                messages=history
+            )
+            assistant_reply = response.choices[0].message.content
 
-        assistant_reply = response.choices[0].message.content
+        except APIConnectionError as e:
+            logger.error(f"Connection failed: {e}")
+            print("Bot: Network issue, couldn't reach the AI. Try again.\n")
+            history.pop()  # remove the unanswered user message
+            continue
+
+        except APIError as e:
+            logger.error(f"API error: {e}")
+            print("Bot: Something went wrong on the API side. Try again.\n")
+            history.pop()
+            continue
+
         history.append({"role": "assistant", "content": assistant_reply})
         trim_history(history)
 
