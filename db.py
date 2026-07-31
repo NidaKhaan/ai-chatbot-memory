@@ -22,9 +22,17 @@ def init_db():
 
 def get_existing_sessions(conn):
     cursor = conn.execute("""
-        SELECT session_id, MIN(timestamp) as started, COUNT(*) as msg_count
-        FROM messages
-        GROUP BY session_id
+        SELECT
+            m.session_id,
+            MIN(m.timestamp) as started,
+            COUNT(*) as msg_count,
+            (
+                SELECT content FROM messages
+                WHERE session_id = m.session_id AND role = 'user'
+                ORDER BY id ASC LIMIT 1
+            ) as title
+        FROM messages m
+        GROUP BY m.session_id
         ORDER BY started DESC
     """)
     return cursor.fetchall()

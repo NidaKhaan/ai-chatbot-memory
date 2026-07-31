@@ -1,3 +1,4 @@
+import base64
 import streamlit as st
 from db import init_db, get_existing_sessions, load_session_history, save_message, new_session_id
 from chat import get_reply, trim_history, SYSTEM_PROMPT
@@ -10,6 +11,15 @@ conn = init_db()
 if "session_id" not in st.session_state:
     st.session_state.session_id = None
     st.session_state.history = []
+
+
+def load_svg_as_data_uri(path):
+    with open(path, "rb") as f:
+        encoded = base64.b64encode(f.read()).decode("utf-8")
+    return f"data:image/svg+xml;base64,{encoded}"
+
+
+synapse_logo = load_svg_as_data_uri("assets/synapse-avatar.svg")
 
 # ---------- Custom styling ----------
 st.markdown("""
@@ -40,19 +50,9 @@ section[data-testid="stSidebar"] {
     margin-bottom: 0px;
 }
 
-.pulse-dot {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    background: #6C5CE7;
-    box-shadow: 0 0 0 0 rgba(108, 92, 231, 0.7);
-    animation: pulse 2s infinite;
-}
-
-@keyframes pulse {
-    0% { box-shadow: 0 0 0 0 rgba(108, 92, 231, 0.6); }
-    70% { box-shadow: 0 0 0 10px rgba(108, 92, 231, 0); }
-    100% { box-shadow: 0 0 0 0 rgba(108, 92, 231, 0); }
+.synapse-logo {
+    width: 32px;
+    height: 32px;
 }
 
 .synapse-sub {
@@ -68,15 +68,26 @@ div[data-testid="stChatMessage"] {
     border: 1px solid #23262F;
 }
 
-.stButton button {
+.stButton button[kind="primary"] {
+    background-color: #6C5CE7;
+    color: #FFFFFF;
+    border: none;
+}
+
+.stButton button[kind="primary"]:hover {
+    background-color: #5b4dd1;
+    color: #FFFFFF;
+}
+
+.stButton button[kind="secondary"] {
     background-color: #1A1D24;
     color: #E8E9ED;
     border: 1px solid #23262F;
-    border-radius: 8px;
-    font-family: 'Inter', sans-serif;
+    text-align: left;
+    justify-content: flex-start;
 }
 
-.stButton button:hover {
+.stButton button[kind="secondary"]:hover {
     border-color: #6C5CE7;
     color: #6C5CE7;
 }
@@ -84,35 +95,41 @@ div[data-testid="stChatMessage"] {
 """, unsafe_allow_html=True)
 
 # ---------- Sidebar ----------
-st.sidebar.markdown("### Sessions")
+st.sidebar.markdown("### Synapse")
 
-sessions = get_existing_sessions(conn)
-
-if st.sidebar.button("＋ New Session", use_container_width=True):
+if st.sidebar.button("＋ New chat", use_container_width=True, type="primary"):
     st.session_state.session_id = new_session_id()
     st.session_state.history = [SYSTEM_PROMPT]
     st.rerun()
 
+sessions = get_existing_sessions(conn)
+
 if sessions:
-    st.sidebar.markdown("**Resume:**")
-    for i, (session_id, started, count) in enumerate(sessions, start=1):
-        date_only = started.split("T")[0]
-        label = f"Session {i} · {date_only} · {count} msgs"
-        if st.sidebar.button(label, key=f"resume_{session_id}", use_container_width=True):
+    st.sidebar.markdown(
+        "<div style='color:#8B8FA3; font-size:12px; margin:16px 0 4px; text-transform:uppercase; letter-spacing:0.5px;'>Recent</div>",
+        unsafe_allow_html=True
+    )
+
+    for session_id, started, count, title in sessions:
+        display_title = (title[:32] + "…") if title and len(title) > 32 else (title or "New chat")
+        is_active = session_id == st.session_state.session_id
+        button_type = "primary" if is_active else "secondary"
+
+        if st.sidebar.button(display_title, key=f"resume_{session_id}", use_container_width=True, type=button_type):
             st.session_state.session_id = session_id
             st.session_state.history = load_session_history(conn, session_id)
             st.rerun()
 
 # ---------- Main ----------
-st.markdown("""
+st.markdown(f"""
 <div class="synapse-header">
-    <div class="pulse-dot"></div> Synapse
+    <img src="{synapse_logo}" class="synapse-logo" /> Synapse
 </div>
 <div class="synapse-sub">An AI that remembers the conversation, not just the message.</div>
 """, unsafe_allow_html=True)
 
 if st.session_state.session_id is None:
-    st.info("Start a new session or resume one from the sidebar to begin.")
+    st.info("Start a new chat or resume one from the sidebar to begin.")
 else:
     for msg in st.session_state.history:
         if msg["role"] == "system":
