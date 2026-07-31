@@ -19,6 +19,10 @@ def main():
             print("Session ended.")
             break
 
+        if not user_input.strip():
+            print("Bot: (empty input ignored, please type something)\n")
+            continue
+
         history.append({"role": "user", "content": user_input})
 
         response = client.chat.completions.create(
