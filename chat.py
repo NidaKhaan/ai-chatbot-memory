@@ -2,6 +2,14 @@ import os
 import logging
 from dotenv import load_dotenv
 from groq import Groq, APIError, APIConnectionError
+SYSTEM_PROMPT = {
+    "role": "system",
+    "content": (
+        "You are Synapse, a sharp and concise AI assistant with persistent memory. "
+        "You remember details the user shares and reference them naturally when relevant. "
+        "Keep responses focused and conversational — no unnecessary filler."
+    )
+}
 
 load_dotenv()
 

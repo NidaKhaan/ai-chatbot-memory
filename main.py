@@ -2,6 +2,14 @@ from db import init_db, get_existing_sessions, load_session_history, save_messag
 from chat import get_reply, trim_history
 from groq import APIError, APIConnectionError
 import logging
+SYSTEM_PROMPT = {
+    "role": "system",
+    "content": (
+        "You are Synapse, a sharp and concise AI assistant with persistent memory. "
+        "You remember details the user shares and reference them naturally when relevant. "
+        "Keep responses focused and conversational — no unnecessary filler."
+    )
+}
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +46,8 @@ def main():
     conn = init_db()
     session_id = choose_session(conn)
     history = load_session_history(conn, session_id)
+    if not history:
+        history = [SYSTEM_PROMPT]
 
     print(f"\nSession: {session_id}")
     print(f"Loaded {len(history)} prior messages." if history else "Starting fresh.")
