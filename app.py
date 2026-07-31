@@ -3,7 +3,7 @@ from db import init_db, get_existing_sessions, load_session_history, save_messag
 from chat import get_reply, trim_history, SYSTEM_PROMPT
 from groq import APIError, APIConnectionError
 
-st.set_page_config(page_title="Synapse — AI with Memory", page_icon="🧠", layout="centered")
+st.set_page_config(page_title="Synapse — AI with Memory", page_icon="assets/synapse-avatar.svg", layout="centered")
 
 conn = init_db()
 
@@ -117,7 +117,8 @@ else:
     for msg in st.session_state.history:
         if msg["role"] == "system":
             continue
-        with st.chat_message(msg["role"]):
+        avatar = "assets/synapse-avatar.svg" if msg["role"] == "assistant" else "assets/user-avatar.svg"
+        with st.chat_message(msg["role"], avatar=avatar):
             st.write(msg["content"])
 
     user_input = st.chat_input("Message Synapse...")
@@ -127,7 +128,7 @@ else:
             st.warning("Empty input ignored.")
         else:
             st.session_state.history.append({"role": "user", "content": user_input})
-            with st.chat_message("user"):
+            with st.chat_message("user", avatar="assets/user-avatar.svg"):
                 st.write(user_input)
 
             try:
@@ -140,7 +141,7 @@ else:
                 save_message(conn, st.session_state.session_id, "user", user_input)
                 save_message(conn, st.session_state.session_id, "assistant", assistant_reply)
 
-                with st.chat_message("assistant"):
+                with st.chat_message("assistant", avatar="assets/synapse-avatar.svg"):
                     st.write(assistant_reply)
 
             except (APIConnectionError, APIError) as e:

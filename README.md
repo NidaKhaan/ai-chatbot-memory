@@ -1,36 +1,49 @@
-# AI Chatbot with Memory
+# Synapse
 
-A stateful CLI chatbot built on the Groq API (Llama 3.3 70B) that maintains conversation context across a live session.
+An AI chatbot that remembers the conversation, not just the message.
 
-## Why this project
-Frontier LLM APIs are stateless by default — every request is treated as an isolated transaction with no memory of prior turns. This project engineers a **stateful conversational loop** on top of that stateless API by maintaining an in-memory history array, appending each turn, and re-sending the full context with every call.
+Most LLM APIs are stateless — every request is treated as a blank slate with no memory of what came before. Synapse engineers a persistent, stateful conversational layer on top of a stateless API: live in-session memory, session history saved to disk, and the ability to pick up an old conversation exactly where it left off.
+
+## Why this exists
+Built as a foundational systems-engineering exercise before moving into more complex territory like RAG and autonomous agents. The goal wasn't "call an LLM API" — it was understanding *how* context, state, and memory actually get engineered on top of an inherently stateless request/response cycle.
 
 ## Features
-- Live multi-turn conversation with context retention
-- Input validation guard (blocks empty/whitespace submissions before they hit the API)
-- Sliding window (FIFO) history trimming to prevent token/context overflow
-- Graceful error handling for network and API failures, with logging
+- Persistent multi-turn conversation memory within and across sessions
+- Session save/resume — conversations are stored in SQLite and can be reloaded anytime
+- Sliding-window context trimming to prevent token/context overflow on long conversations
+- Input validation and graceful error handling (network/API failures don't crash the session)
+- Custom system-prompt personality layer
+- Dark, minimal web interface built with Streamlit
 
 ## Tech Stack
 - Python 3.11
-- Groq API (`groq` SDK) — free tier, OpenAI-compatible schema
-- `python-dotenv` for secrets management
+- [Groq API](https://groq.com) (Llama 3.3 70B) — free tier, OpenAI-compatible schema
+- SQLite for persistence
+- Streamlit for the web interface
+
+## Architecture
+├── app.py # Streamlit web interface
+├── main.py # CLI interface (original entry point)
+├── db.py # SQLite persistence layer
+├── chat.py # LLM API calls, history trimming, system prompt
+└── assets/ # UI icons
+The web and CLI interfaces share the same underlying `db.py` and `chat.py` modules — no duplicated logic between them.
 
 ## Setup
 1. Clone the repo
-2. Create a virtual environment: `python -m venv venv` then activate it
-3. Install dependencies: `pip install -r requirements.txt`
-4. Create a `.env` file in the root:
-5. Run: `python main.py`
+2. `python -m venv venv` then activate it
+3. `pip install -r requirements.txt`
+4. Create a `.env` file: GROQ_API_KEY=your_key_here
+5. Run the web app: `streamlit run app.py`
+   Or the CLI version: `python main.py`
 
-## Usage
-Type normally to chat. Type `exit` to end the session.
+## Design Notes
+- Conversation history is stored as a list of `{"role", "content"}` objects — the standard chat-completion schema shared across most LLM providers.
+- History sent to the API is capped at 20 messages (10 turns); full history is retained in SQLite regardless of the trim.
+- A `system` role message anchors the assistant's personality for the session.
+- On API failure, the unanswered user message is popped from history to keep the payload structurally valid for the next request.
 
-## Architecture Notes
-- History is stored as a list of `{"role": ..., "content": ...}` objects — the standard chat-completion schema used across OpenAI-compatible APIs.
-- History is capped at 20 messages (10 turns); oldest messages are dropped first when the cap is exceeded.
-- On API failure, the unanswered user message is removed from history to keep the payload structurally consistent for the next request.
-
-## Known Limitations
-- Memory is session-only — no persistence across restarts (planned as a future milestone: SQLite/JSON-based storage).
-- Trimming is message-count based, not token-count based.
+## Roadmap
+- [ ] Token-based (not message-count-based) trimming
+- [ ] Editable/deletable sessions from the UI
+- [ ] Streaming responses
