@@ -54,5 +54,10 @@ def save_message(conn, session_id, role, content):
     conn.commit()
 
 
+def delete_session(conn, session_id):
+    conn.execute("DELETE FROM messages WHERE session_id = ?", (session_id,))
+    conn.commit()
+
+
 def new_session_id():
     return str(uuid.uuid4())[:8]

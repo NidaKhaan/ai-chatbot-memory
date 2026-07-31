@@ -1,15 +1,7 @@
-from db import init_db, get_existing_sessions, load_session_history, save_message, new_session_id
-from chat import get_reply, trim_history
-from groq import APIError, APIConnectionError
 import logging
-SYSTEM_PROMPT = {
-    "role": "system",
-    "content": (
-        "You are Synapse, a sharp and concise AI assistant with persistent memory. "
-        "You remember details the user shares and reference them naturally when relevant. "
-        "Keep responses focused and conversational — no unnecessary filler."
-    )
-}
+from db import init_db, get_existing_sessions, load_session_history, save_message, new_session_id, delete_session
+from chat import get_reply, trim_history, SYSTEM_PROMPT
+from groq import APIError, APIConnectionError
 
 logger = logging.getLogger(__name__)
 
@@ -21,15 +13,28 @@ def choose_session(conn):
         return new_session_id()
 
     print("\nExisting sessions found:")
-    for i, (session_id, started, count) in enumerate(sessions, start=1):
-        print(f"  {i}. {session_id}  (started {started}, {count} messages)")
+    for i, (session_id, started, count, title) in enumerate(sessions, start=1):
+        preview = (title[:40] + "…") if title and len(title) > 40 else (title or "New chat")
+        print(f"  {i}. {preview}  ({count} messages)")
 
     print(f"  N. Start a new session")
+    print(f"  D. Delete a session")
 
-    choice = input("\nChoose a session number to resume, or 'N' for new: ").strip().lower()
+    choice = input("\nChoose a session number to resume, 'N' for new, or 'D' to delete: ").strip().lower()
 
     if choice == "n":
         return new_session_id()
+
+    if choice == "d":
+        del_choice = input("Enter the number of the session to delete: ").strip()
+        try:
+            index = int(del_choice) - 1
+            if 0 <= index < len(sessions):
+                delete_session(conn, sessions[index][0])
+                print("Session deleted.\n")
+        except ValueError:
+            print("Invalid input, nothing deleted.\n")
+        return choose_session(conn)
 
     try:
         index = int(choice) - 1
@@ -50,7 +55,7 @@ def main():
         history = [SYSTEM_PROMPT]
 
     print(f"\nSession: {session_id}")
-    print(f"Loaded {len(history)} prior messages." if history else "Starting fresh.")
+    print(f"Loaded {len(history)} prior messages." if len(history) > 1 else "Starting fresh.")
     print("Type 'exit' to quit.\n")
 
     while True:

@@ -1,6 +1,6 @@
 import base64
 import streamlit as st
-from db import init_db, get_existing_sessions, load_session_history, save_message, new_session_id
+from db import init_db, get_existing_sessions, load_session_history, save_message, new_session_id, delete_session
 from chat import get_reply, trim_history, SYSTEM_PROMPT
 from groq import APIError, APIConnectionError
 
@@ -91,6 +91,17 @@ div[data-testid="stChatMessage"] {
     border-color: #6C5CE7;
     color: #6C5CE7;
 }
+
+.delete-btn button {
+    background-color: transparent;
+    border: none;
+    color: #8B8FA3;
+    padding: 0px;
+}
+
+.delete-btn button:hover {
+    color: #E05252;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -111,14 +122,27 @@ if sessions:
     )
 
     for session_id, started, count, title in sessions:
-        display_title = (title[:32] + "…") if title and len(title) > 32 else (title or "New chat")
+        display_title = (title[:28] + "…") if title and len(title) > 28 else (title or "New chat")
         is_active = session_id == st.session_state.session_id
         button_type = "primary" if is_active else "secondary"
 
-        if st.sidebar.button(display_title, key=f"resume_{session_id}", use_container_width=True, type=button_type):
-            st.session_state.session_id = session_id
-            st.session_state.history = load_session_history(conn, session_id)
-            st.rerun()
+        col1, col2 = st.sidebar.columns([5, 1])
+
+        with col1:
+            if st.button(display_title, key=f"resume_{session_id}", use_container_width=True, type=button_type):
+                st.session_state.session_id = session_id
+                st.session_state.history = load_session_history(conn, session_id)
+                st.rerun()
+
+        with col2:
+            st.markdown('<div class="delete-btn">', unsafe_allow_html=True)
+            if st.button("✕", key=f"delete_{session_id}"):
+                delete_session(conn, session_id)
+                if st.session_state.session_id == session_id:
+                    st.session_state.session_id = None
+                    st.session_state.history = []
+                st.rerun()
+            st.markdown('</div>', unsafe_allow_html=True)
 
 # ---------- Main ----------
 st.markdown(f"""
