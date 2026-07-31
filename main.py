@@ -1,72 +1,16 @@
-import os
+from db import init_db, get_existing_sessions, load_session_history, save_message, new_session_id
+from chat import get_reply, trim_history
+from groq import APIError, APIConnectionError
 import logging
-import sqlite3
-import uuid
-from datetime import datetime
-from dotenv import load_dotenv
-from groq import Groq, APIError, APIConnectionError
 
-load_dotenv()
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s"
-)
 logger = logging.getLogger(__name__)
-
-client = Groq(api_key=os.getenv("GROQ_API_KEY"))
-
-MODEL = "llama-3.3-70b-versatile"
-MAX_HISTORY_MESSAGES = 20
-DB_PATH = "chat_history.db"
-
-
-def init_db():
-    conn = sqlite3.connect(DB_PATH)
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS messages (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            session_id TEXT NOT NULL,
-            role TEXT NOT NULL,
-            content TEXT NOT NULL,
-            timestamp TEXT NOT NULL
-        )
-    """)
-    conn.commit()
-    return conn
-
-
-def get_existing_sessions(conn):
-    cursor = conn.execute("""
-        SELECT session_id, MIN(timestamp) as started, COUNT(*) as msg_count
-        FROM messages
-        GROUP BY session_id
-        ORDER BY started DESC
-    """)
-    return cursor.fetchall()
-
-
-def load_session_history(conn, session_id):
-    cursor = conn.execute(
-        "SELECT role, content FROM messages WHERE session_id = ? ORDER BY id ASC",
-        (session_id,)
-    )
-    return [{"role": row[0], "content": row[1]} for row in cursor.fetchall()]
-
-
-def save_message(conn, session_id, role, content):
-    conn.execute(
-        "INSERT INTO messages (session_id, role, content, timestamp) VALUES (?, ?, ?, ?)",
-        (session_id, role, content, datetime.now().isoformat())
-    )
-    conn.commit()
 
 
 def choose_session(conn):
     sessions = get_existing_sessions(conn)
 
     if not sessions:
-        return str(uuid.uuid4())[:8]
+        return new_session_id()
 
     print("\nExisting sessions found:")
     for i, (session_id, started, count) in enumerate(sessions, start=1):
@@ -77,7 +21,7 @@ def choose_session(conn):
     choice = input("\nChoose a session number to resume, or 'N' for new: ").strip().lower()
 
     if choice == "n":
-        return str(uuid.uuid4())[:8]
+        return new_session_id()
 
     try:
         index = int(choice) - 1
@@ -87,13 +31,7 @@ def choose_session(conn):
         pass
 
     print("Invalid choice, starting a new session instead.\n")
-    return str(uuid.uuid4())[:8]
-
-
-def trim_history(history):
-    if len(history) > MAX_HISTORY_MESSAGES:
-        overflow = len(history) - MAX_HISTORY_MESSAGES
-        del history[:overflow]
+    return new_session_id()
 
 
 def main():
@@ -119,11 +57,7 @@ def main():
         history.append({"role": "user", "content": user_input})
 
         try:
-            response = client.chat.completions.create(
-                model=MODEL,
-                messages=history
-            )
-            assistant_reply = response.choices[0].message.content
+            assistant_reply = get_reply(history)
 
         except APIConnectionError as e:
             logger.error(f"Connection failed: {e}")
