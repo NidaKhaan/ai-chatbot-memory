@@ -10,7 +10,7 @@ An AI chatbot that remembers the conversation, not just the message.
 
 Most LLM APIs are stateless! every request is treated as a blank slate with no memory of what came before. Synapse engineers a persistent, stateful conversational layer on top of a stateless API: live in-session memory, session history saved to disk, and the ability to pick up an old conversation exactly where it left off.
 
-![Synapse new chat screen](assets/screenshots/new-chat.png)
+![Synapse new chat screen](assets/screenshots/chat-ui.png)
 
 ## Why This Exists
 
@@ -26,12 +26,6 @@ Built as a foundational systems-engineering exercise before moving into more com
 | Input validation | Empty/whitespace input is rejected before it reaches the API |
 | Error handling | Network/API failures are caught gracefully, session state stays consistent |
 | Dual interface | CLI and web app, both sharing the same core logic |
-
-## Screenshot
-
-**Web Interface**
-
-![Chat](assets/screenshots/chat-ui.png)
 
 
 ## Tech Stack
