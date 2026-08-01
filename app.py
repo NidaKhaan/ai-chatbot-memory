@@ -8,6 +8,11 @@ st.set_page_config(page_title="Synapse — AI with Memory", page_icon="assets/sy
 
 conn = init_db()
 
+INTRO_MESSAGE = {
+    "role": "assistant",
+    "content": "Hey, I'm Synapse. Unlike most chatbots, I actually remember our conversation — within this session and across visits. Ask me anything, or tell me something you'd like me to remember."
+}
+
 if "session_id" not in st.session_state:
     st.session_state.session_id = None
     st.session_state.history = []
@@ -62,10 +67,21 @@ section[data-testid="stSidebar"] {
     margin-bottom: 24px;
 }
 
-div[data-testid="stChatMessage"] {
+/* User messages: right-aligned, indigo tint */
+div[data-testid="stChatMessage"]:has(img[alt="user avatar"]) {
+    flex-direction: row-reverse;
+    background-color: #23263A;
+    border: 1px solid #34365A;
+    border-radius: 14px 14px 2px 14px;
+    margin-left: 15%;
+}
+
+/* Assistant messages: left-aligned, graphite */
+div[data-testid="stChatMessage"]:has(img[alt="assistant avatar"]) {
     background-color: #1A1D24;
-    border-radius: 12px;
     border: 1px solid #23262F;
+    border-radius: 14px 14px 14px 2px;
+    margin-right: 15%;
 }
 
 .stButton button[kind="primary"] {
@@ -102,6 +118,28 @@ div[data-testid="stChatMessage"] {
 .delete-btn button:hover {
     color: #E05252;
 }
+
+.about-box {
+    background-color: #1A1D24;
+    border: 1px solid #23262F;
+    border-radius: 10px;
+    padding: 14px;
+    font-size: 13px;
+    color: #B4B7C4;
+    line-height: 1.5;
+    margin-top: 20px;
+}
+
+.about-box b {
+    color: #E8E9ED;
+}
+
+.author-tag {
+    font-size: 12px;
+    color: #6C5CE7;
+    margin-top: 8px;
+    display: block;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -110,7 +148,7 @@ st.sidebar.markdown("### Synapse")
 
 if st.sidebar.button("＋ New chat", use_container_width=True, type="primary"):
     st.session_state.session_id = new_session_id()
-    st.session_state.history = [SYSTEM_PROMPT]
+    st.session_state.history = [SYSTEM_PROMPT, INTRO_MESSAGE]
     st.rerun()
 
 sessions = get_existing_sessions(conn)
@@ -143,6 +181,17 @@ if sessions:
                     st.session_state.history = []
                 st.rerun()
             st.markdown('</div>', unsafe_allow_html=True)
+
+# --- About section ---
+st.sidebar.markdown("""
+<div class="about-box">
+    <b>About this project</b><br>
+    Synapse is a chatbot engineered to solve a core limitation of LLM APIs: statelessness.
+    It maintains persistent memory across a conversation and across sessions using a
+    custom-built history and persistence layer.
+    <span class="author-tag">Built by Nida Sheraz</span>
+</div>
+""", unsafe_allow_html=True)
 
 # ---------- Main ----------
 st.markdown(f"""
